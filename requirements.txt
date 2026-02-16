@@ -1,1 +1,3 @@
-install my app
+flask
+gunicorn
+openpyxl
