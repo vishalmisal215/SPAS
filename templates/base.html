@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title or "Student Practical Assessment System" }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script defer src="{{ url_for('static', filename='js/script.js') }}"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">SPAS</div>
+        <div class="header-title">Student Practical Assessment System</div>
+    </header>
+
+    <nav class="nav">
+        <input type="checkbox" id="hamburger-toggle" class="hamburger-input">
+        <label for="hamburger-toggle" class="hamburger-icon">
+            <span></span>
+        </label>
+        
+        <div class="hamburger-menu">
+            {% if session.get('roll_no') %}
+                <button class="nav-link nav-btn" data-target="section-home">Home</button>
+                <button class="nav-link nav-btn" data-target="section-profile">Profile</button>
+                <button class="nav-link nav-btn" data-target="section-instructions">Instructions</button>
+                <button class="nav-link nav-btn" data-target="section-practicals">Practical List</button>
+                <button class="nav-link nav-btn" data-target="section-rules">Rules</button>
+                <a class="nav-link" href="{{ url_for('result') }}">Result</a>
+                <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+            {% else %}
+                <a class="nav-link" href="{{ url_for('index') }}">Login</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-container">
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <main class="main">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2026 | Student Practical Assessment System</p>
+    </footer>
+</body>
+</html>

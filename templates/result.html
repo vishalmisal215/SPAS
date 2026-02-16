@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero hero-small">
+    <h1>Exam Result</h1>
+</section>
+
+{% if result %}
+<div class="card card-tilt" style="max-width: 600px; margin: 0 auto;">
+    <h2 style="text-align: center; color: #1976d2; margin-bottom: 20px;">Your Performance</h2>
+    
+    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <p><strong>Roll Number:</strong> {{ result.roll_no }}</p>
+        <p><strong>Name:</strong> {{ result.name }}</p>
+        <p><strong>Branch:</strong> {{ result.branch }}</p>
+        <p><strong>Year:</strong> {{ result.year }}</p>
+        <p><strong>Email:</strong> {{ result.email }}</p>
+        <p><strong>Practical:</strong> {{ result.practical_name }}</p>
+    </div>
+    
+    <hr style="border: none; border-top: 2px solid #e0e0e0; margin: 20px 0;">
+    
+    <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <p><strong>Total Questions:</strong> {{ result.total_questions }}</p>
+        <p><strong>Attempted:</strong> {{ result.attempted }}</p>
+        <p><strong>Correct Answers:</strong> <span style="color: #2e7d32;">{{ result.correct }}</span></p>
+        <p><strong>Wrong Answers:</strong> <span style="color: #c62828;">{{ result.wrong }}</span></p>
+        <p style="font-size: 20px; margin-top: 10px;">
+            <strong>Final Score:</strong> 
+            <span style="color: #1976d2; font-size: 24px;">
+                {{ result.correct }} / {{ result.total_questions or 20 }}
+            </span>
+        </p>
+    </div>
+    
+    <p style="text-align: center; color: #666;">
+        <strong>Date & Time:</strong> {{ result.datetime }}
+    </p>
+    
+    {% if filename %}
+    <div style="text-align: center; margin-top: 20px;">
+        <a class="btn btn-primary" href="{{ url_for('download', filename=filename) }}">
+            Download Result (.txt)
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="card" style="max-width: 500px; margin: 0 auto; text-align: center;">
+    <p>No recent result available. Please attempt an exam first.</p>
+</div>
+{% endif %}
+
+<div style="text-align: center; margin-top: 20px;">
+    <a class="btn btn-secondary" href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+</div>
+
+{% endblock %}

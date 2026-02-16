@@ -1,0 +1,41 @@
+[
+    {
+        "id": "1",
+        "name": "CSS",
+        "practicals": [
+            "Practical No:1 Write a JavaScript to implement different types of operators.",
+            "Practical No:2 Write a JavaScript to implement various conditional statements.",
+            "Practical No:3 Write a JavaScript to implement various looping statements.",
+            "Practical No:4 Write a JavaScript to implement concept of built-in functions and user defined functions.",
+            "Practical No:5 Write a JavaScript to implement Array.",
+            "Practical No:6 Write a JavaScript to implement Strings.",
+            "Practical No:7 Create a webpage using form elements.",
+            "Practical No:8 Create a webpage to implement different form events.",
+            "Practical No:9 Develop a webpage to perform operation on cookies.",
+            "Practical No:10 Develop a webpage using Intrinsic Java Functions.",
+            "Practical No:11 Develop a webpage for placing a window on the screen and working with child window.",
+            "Practical No:12 Develop a webpage for validation of form fields using regular expression.",
+            "Practical No:13 Create a webpage with Rollover Effects.",
+            "Practical No:14 Create a webpage to implement menus.",
+            "Practical No:15 Create a webpage to implement Status bars.",
+            "Practical No:16 Develop a webpage to implement webpage protection.",
+            "Practical No:17 Develop a webpage to implement slideshow and banner."
+        ]
+    },
+    {
+        "id": "2",
+        "name": "IFS",
+        "practicals": [
+            "Practical No:1 Knowing the security provided with windows operating system",
+            "Practical No:2 Recovery the password of windows machines using password recover utility (John the ripper) or any other utility",
+            "Practical No:3 Tracing of email origin using eMailTracePro utility",
+            "Practical No:4 Use of keylogger and anti-key logger to secure your system",
+            "Practical No:5 Encrypt and decrypt the message using Simple Transposition –Permutation( Cryptool)",
+            "Practical No:6 Encrypt and decrypt the message using Caesar Cipher With Variable",
+            "Practical No:7 Encrypt and decrypt the message using 3 X 3 Hill Cipher( Cryptool)",
+            "Practical No:8 Create Digital Signature document (using Cryptool)",
+            "Practical No:9 Send and receive secret message using Steganography techniques using steghide",
+            "Practical No:10 Recover the data from formatted Pen drive and Hard Disk using power data Recovery utility or any other utility"
+        ]
+    }
+]

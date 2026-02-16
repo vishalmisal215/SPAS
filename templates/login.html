@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Student Practical Assessment System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="header">
+        <div class="logo">SPAS</div>
+        <div class="header-title">Student Practical Assessment System</div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-container">
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="login-container">
+        <div class="login-tabs-container">
+            <h1 style="text-align: center; color: #1976d2; margin-bottom: 20px;">Welcome to SPAS</h1>
+            
+            <div class="tab-navigation">
+                <button class="tab-button active" onclick="openTab(event, 'student-tab')">
+                    Student Login
+                </button>
+                <button class="tab-button" onclick="openTab(event, 'faculty-tab')">
+                    Faculty Login
+                </button>
+            </div>
+
+            <!-- STUDENT TAB -->
+            <div id="student-tab" class="tab-content active">
+                <div class="login-card">
+                    <div id="student-login-form">
+                        <h2>Student Login</h2>
+                        <form method="post">
+                            <input type="hidden" name="login_type" value="student">
+                            <input type="hidden" name="action" value="login">
+                            
+                            <label>Roll Number</label>
+                            <input type="text" name="roll_no" required autofocus>
+                            
+                            <div class="password-container">
+                                <label>Password</label>
+                                <input type="password" id="student-login-password" name="password" minlength="6" required>
+                                <span class="password-toggle" onclick="togglePassword('student-login-password')">👁️</span>
+                            </div>
+                            
+                            <button type="submit">Login</button>
+                        </form>
+                        
+                        <p class="create-link">No account? <a href="#" onclick="showStudentRegister()">Create Profile</a></p>
+                        <p class="create-link"><a href="#" class="forgot-password-link" data-user-type="student">Forgot Password?</a></p>
+                    </div>
+
+                    <div id="student-register-form" style="display: none;">
+                        <h2>Create Student Profile</h2>
+                        <form method="post">
+                            <input type="hidden" name="login_type" value="student">
+                            <input type="hidden" name="action" value="register">
+                            
+                            <label>Roll Number</label>
+                            <input type="text" name="roll_no" required>
+                            
+                            <div class="password-container">
+                                <label>Password (min 6 chars)</label>
+                                <input type="password" id="student-register-password" name="password" minlength="6" required>
+                                <span class="password-toggle" onclick="togglePassword('student-register-password')">👁️</span>
+                            </div>
+                            
+                            <label>Full Name</label>
+                            <input type="text" name="full_name" required>
+                            
+                            <label>Branch</label>
+                            <select name="branch" required>
+                                <option value="CM">CM</option>
+                                <option value="IT">IT</option>
+                                <option value="ECE">ECE</option>
+                                <option value="ME">ME</option>
+                                <option value="Civil">Civil</option>
+                            </select>
+                            
+                            <label>Batch Number</label>
+                            <select name="batch" required>
+                                <option value="1">Batch 1</option>
+                                <option value="2">Batch 2</option>
+                                <option value="3">Batch 3</option>
+                                
+                            </select>
+                            
+                            <label>Year</label>
+                            <select name="year" required>
+                                <option value="1st">1st</option>
+                                <option value="2nd">2nd</option>
+                                <option value="3rd">3rd</option>
+                               
+                            </select>
+                            
+                            <label>Email</label>
+                            <input type="email" name="email" required>
+                            
+                            <button type="submit">Create Profile</button>
+                        </form>
+                        
+                        <p class="create-link">Already have account? <a href="#" onclick="showStudentLogin()">Login</a></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FACULTY TAB -->
+            <div id="faculty-tab" class="tab-content">
+                <div class="login-card">
+                    <div id="faculty-login-form">
+                        <h2>Faculty Login</h2>
+                        <form method="post">
+                            <input type="hidden" name="login_type" value="faculty">
+                            <input type="hidden" name="action" value="login">
+                            
+                            <label>Faculty ID</label>
+                            <input type="text" name="faculty_id" required>
+                            
+                            <div class="password-container">
+                                <label>Password</label>
+                                <input type="password" id="faculty-login-password" name="password" minlength="6" required>
+                                <span class="password-toggle" onclick="togglePassword('faculty-login-password')">👁️</span>
+                            </div>
+                            
+                            <button type="submit">Login</button>
+                        </form>
+                        
+                        <p class="create-link">New faculty? <a href="#" onclick="showFacultyRegister()">Create Profile</a></p>
+                        <p class="create-link"><a href="#" class="forgot-password-link" data-user-type="faculty">Forgot Password?</a></p>
+                    </div>
+
+                    <div id="faculty-register-form" style="display: none;">
+                        <h2>Create Faculty Profile</h2>
+                        <form method="post">
+                            <input type="hidden" name="login_type" value="faculty">
+                            <input type="hidden" name="action" value="register">
+                            
+                            <label>Faculty ID</label>
+                            <input type="text" name="faculty_id" required>
+                            
+                            <div class="password-container">
+                                <label>Password (min 6 chars)</label>
+                                <input type="password" id="faculty-register-password" name="password" minlength="6" required>
+                                <span class="password-toggle" onclick="togglePassword('faculty-register-password')">👁️</span>
+                            </div>
+                            
+                            <label>Full Name</label>
+                            <input type="text" name="full_name" required>
+                            
+                            <label>Department</label>
+                            <select name="department" required>
+                                <option value="Computer Science">Computer Science</option>
+                                <option value="Information Technology">Information Technology</option>
+                                <option value="Electronics">Electronics</option>
+                                <option value="Mechanical">Mechanical</option>
+                                <option value="Civil">Civil</option>
+                                <option value="Other">Other</option>
+                            </select>
+                            
+                            <label>Email</label>
+                            <input type="email" name="email" required>
+                            
+                            <button type="submit">Create Profile</button>
+                        </form>
+                        
+                        <p class="create-link">Already have account? <a href="#" onclick="showFacultyLogin()">Login</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2026 | Student Practical Assessment System</p>
+    </footer>
+
+    <script>
+        function openTab(evt, tabName) {
+            var i, tabContent, tabButtons;
+            tabContent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabContent.length; i++) {
+                tabContent[i].classList.remove("active");
+            }
+            tabButtons = document.getElementsByClassName("tab-button");
+            for (i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].classList.remove("active");
+            }
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.classList.add("active");
+        }
+
+        function showStudentRegister() {
+            document.getElementById('student-login-form').style.display = 'none';
+            document.getElementById('student-register-form').style.display = 'block';
+        }
+
+        function showStudentLogin() {
+            document.getElementById('student-register-form').style.display = 'none';
+            document.getElementById('student-login-form').style.display = 'block';
+        }
+
+        function showFacultyRegister() {
+            document.getElementById('faculty-login-form').style.display = 'none';
+            document.getElementById('faculty-register-form').style.display = 'block';
+        }
+
+        function showFacultyLogin() {
+            document.getElementById('faculty-register-form').style.display = 'none';
+            document.getElementById('faculty-login-form').style.display = 'block';
+        }
+
+        function togglePassword(fieldId) {
+            const field = document.getElementById(fieldId);
+            const toggle = field.nextElementSibling;
+            if (field.type === "password") {
+                field.type = "text";
+                toggle.textContent = "🙈";
+            } else {
+                field.type = "password";
+                toggle.textContent = "👁️";
+            }
+        }
+    </script>
+
+    <!-- Forgot Password Modal - NEW FEATURE -->
+    <div id="forgotPasswordModal" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5);">
+        <div style="background-color:#fff; margin:10% auto; padding:30px; border-radius:12px; max-width:450px; box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+            <span onclick="document.getElementById('forgotPasswordModal').style.display='none'" style="color:#aaa; float:right; font-size:28px; font-weight:bold; cursor:pointer;">&times;</span>
+            <h2 style="color:#1976d2; margin-bottom:20px;">Forgot Password</h2>
+            <p style="color:#666; margin-bottom:20px;">Enter your registered email address to recover your password.</p>
+            <form id="forgotPasswordForm">
+                <input type="hidden" id="userType">
+                <label>Email Address</label>
+                <input type="email" id="forgotEmail" required style="width:100%; padding:12px; border:2px solid #1976d2; border-radius:6px; margin-bottom:15px;">
+                <button type="submit" style="width:100%; padding:12px; background:#1976d2; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:16px;">Recover Password</button>
+            </form>
+            <div id="passwordResult" style="margin-top:20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Forgot Password functionality - NEW FEATURE
+        document.querySelectorAll('.forgot-password-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.getElementById('userType').value = this.dataset.userType;
+                document.getElementById('passwordResult').innerHTML = '';
+                document.getElementById('forgotEmail').value = '';
+                document.getElementById('forgotPasswordModal').style.display = 'block';
+            });
+        });
+
+        document.getElementById('forgotPasswordForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const email = document.getElementById('forgotEmail').value;
+            const userType = document.getElementById('userType').value;
+            const resultDiv = document.getElementById('passwordResult');
+            
+            resultDiv.innerHTML = '<p style="color:#1976d2;">Searching...</p>';
+            
+            try {
+                const response = await fetch('/forgot_password', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: `user_type=${userType}&email=${encodeURIComponent(email)}`
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `<div style="background:#e8f5e9; padding:15px; border-radius:8px; border-left:4px solid #2e7d32;"><p style="color:#2e7d32; font-weight:600; margin:0;">✓ Password Found!</p><p style="color:#333; margin:10px 0 0 0;">${data.message}</p></div>`;
+                } else {
+                    resultDiv.innerHTML = `<div style="background:#ffebee; padding:15px; border-radius:8px; border-left:4px solid #c62828;"><p style="color:#c62828; font-weight:600; margin:0;">✗ Not Found</p><p style="color:#333; margin:10px 0 0 0;">${data.message}</p></div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color:#c62828;">Error: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>

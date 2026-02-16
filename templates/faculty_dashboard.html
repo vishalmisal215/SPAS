@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faculty Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script defer src="{{ url_for('static', filename='js/faculty_script.js') }}"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">SPAS</div>
+        <div class="header-title">Student Practical Assessment System</div>
+    </header>
+
+    <nav class="nav">
+        <input type="checkbox" id="hamburger-toggle" class="hamburger-input">
+        <label for="hamburger-toggle" class="hamburger-icon"><span></span></label>
+        <div class="hamburger-menu">
+            <button class="nav-link nav-btn" data-target="section-home">Home</button>
+            <button class="nav-link nav-btn" data-target="section-profile">My Profile</button>
+            <button class="nav-link nav-btn" data-target="section-students">Students Section</button>
+            <button class="nav-link nav-btn" data-target="section-practicals">Practical List</button>
+            <button class="nav-link nav-btn" data-target="section-about">About Us</button>
+            <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </nav>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-container">
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <main class="main">
+
+        <section id="section-home" class="dashboard-section active">
+            <div class="hero hero-small">
+                <h1>Welcome, {{ faculty.full_name }}!</h1>
+                <p>Faculty ID: {{ faculty.faculty_id }} | Department: {{ faculty.department }}</p>
+                <p style="margin-top:20px;">
+                    <strong>Quick Summary:</strong><br>
+                    Total Students: {{ all_students|length }}<br>
+                    Total Practicals: {{ practicals|length }}<br>
+                </p>
+            </div>
+        </section>
+
+        <section id="section-profile" class="dashboard-section">
+            <div class="card card-tilt">
+                <h2>My Profile</h2>
+                <div id="profile-info" class="profile-info">
+                    <p><strong>Faculty ID:</strong> {{ faculty.faculty_id }}</p>
+                    <p><strong>Full Name:</strong> {{ faculty.full_name }}</p>
+                    <p><strong>Department:</strong> {{ faculty.department }}</p>
+                    <p><strong>Email:</strong> {{ faculty.email }}</p>
+                    <button id="edit-profile-btn" class="btn btn-primary">Edit Profile</button>
+                </div>
+                <div id="profile-form" style="display:none;">
+                    <form method="post" action="{{ url_for('faculty_update_profile') }}">
+                        <label>Faculty ID</label>
+                        <input type="text" value="{{ faculty.faculty_id }}" disabled>
+                        <label>Full Name</label>
+                        <input type="text" name="full_name" value="{{ faculty.full_name }}" required>
+                        <label>Department</label>
+                        <select name="department" required>
+                            <option value="Computer Engineering" {% if faculty.department == "Computer Engineering" %}selected{% endif %}>Computer Engineering</option>
+                            <option value="Information Technology" {% if faculty.department == "Information Technology" %}selected{% endif %}>Information Technology</option>
+                            <option value="Electronics" {% if faculty.department == "Electronics" %}selected{% endif %}>Electronics</option>
+                            <option value="Mechanical" {% if faculty.department == "Mechanical" %}selected{% endif %}>Mechanical</option>
+                            <option value="Civil" {% if faculty.department == "Civil" %}selected{% endif %}>Civil</option>
+                        </select>
+                        <label>Email</label>
+                        <input type="email" name="email" value="{{ faculty.email }}" required>
+                        <div style="margin-top:15px; display:flex; gap:10px;">
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                            <button type="button" id="cancel-edit-btn" class="btn btn-secondary">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+                <div style="margin-top:40px; padding-top:30px; border-top:3px solid #e0e0e0;">
+                    <h3 style="color:#c62828; margin-bottom:10px;">Danger Zone</h3>
+                    <p style="color:#666; font-size:14px; margin-bottom:15px; line-height:1.6;">
+                        Deleting your account is <strong>permanent and cannot be undone</strong>.
+                    </p>
+                    <button onclick="confirmDeleteFacultyAccount()" class="btn" style="background:#c62828; color:white; border:2px solid #c62828;">Delete My Account</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-students" class="dashboard-section">
+            <h2 style="margin-bottom:20px;">Students Section</h2>
+            <div class="card" style="margin-bottom:20px; padding:15px;">
+                <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+                    <button onclick="showAddSubjectModal()" class="btn btn-primary">Add Subject</button>
+                </div>
+                <div class="batch-filter-container" style="display:flex; align-items:center; flex-wrap:wrap;">
+                    <span class="batch-filter-label">Filter by Subject:</span>
+                    <select onchange="updateFilters('subject', this.value)" id="subjectFilterStudents" style="padding:8px 15px; border:2px solid #1976d2; border-radius:6px; margin-right:20px; min-width:220px;">
+                        {% for subject in subjects %}
+                        <option value="{{ subject.name }}" {% if selected_subject == subject.name %}selected{% endif %}>{{ subject.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <span class="batch-filter-label">Filter by Batch:</span>
+                    <select id="batch-filter-select" class="batch-filter-select" onchange="changeBatchFilter()" style="margin-right:15px;">
+                        <option value="all" {% if selected_batch == 'all' %}selected{% endif %}>All Batches</option>
+                        {% for batch in all_batches %}
+                        <option value="{{ batch }}" {% if selected_batch == batch %}selected{% endif %}>Batch {{ batch }}</option>
+                        {% endfor %}
+                    </select>
+                    <span style="color:#666;">Showing: {{ students|length }} student(s)</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h3 style="margin:0;">Practical-wise Submissions</h3>
+                    <span style="background:#e3f2fd; color:#1976d2; padding:5px 14px; border-radius:20px; font-size:13px; font-weight:600; border:1px solid #bbdefb;">
+                        Subject: {{ selected_subject }}
+                    </span>
+                </div>
+                <div class="practical-tabs-grid">
+                    {% for practical_name in practicals %}
+                    <div class="practical-tab-card {% if loop.first %}active{% endif %}" onclick="showPracticalPanel('{{ loop.index }}', this)" id="tab-card-{{ loop.index }}">
+                        <div class="practical-tab-title">Practical No: {{ loop.index }}</div>
+                        <div class="practical-tab-count">{{ practical_submissions[practical_name]|length }}/{{ students|length }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% for practical_name in practicals %}
+                <div class="practical-submissions-panel" id="panel-{{ loop.index }}" style="{% if not loop.first %}display:none;{% endif %}">
+                    <h4>Submitted Students for:- Practical No: {{ loop.index }}</h4>
+                    {% if practical_submissions[practical_name]|length > 0 %}
+                    <ul class="practical-list">
+                        {% for submission in practical_submissions[practical_name] %}
+                        <li class="practical-item">
+                            <div>
+                                <span class="practical-name">{{ submission.name }}</span><br>
+                                <small>Roll: {{ submission.roll_no }} | Batch: {{ submission.batch }}</small>
+                            </div>
+                            <span class="submitted-badge">✓ Submitted</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p>No students have submitted this practical yet.</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="card" style="margin-top:30px;">
+                <h3>All Student Performance</h3>
+                <p style="margin-bottom:15px; color:#666;">
+                    {% if selected_batch == 'all' %}All students{% else %}Batch {{ selected_batch }} students{% endif %} with marks
+                </p>
+                <div style="overflow-x:auto;">
+                    <table class="students-table">
+                        <thead>
+                            <tr>
+                                <th>Roll No</th><th>Name</th><th>Branch</th><th>Year</th><th>Batch</th>
+                                {% for practical_name in practicals %}<th>Practical No: {{ loop.index }}</th>{% endfor %}
+                                <th>Total</th><th>Avg</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for roll_no, perf in student_performance.items() %}
+                            <tr>
+                                <td>{{ roll_no }}</td><td>{{ perf.name }}</td><td>{{ perf.branch }}</td>
+                                <td>{{ perf.year }}</td><td>{{ perf.batch }}</td>
+                                {% for practical_name in practicals %}
+                                <td style="text-align:center;">
+                                    {% if practical_name in perf.practical_scores %}
+                                    <button onclick="showResultModal('{{ roll_no }}', '{{ practical_name }}')"
+                                        style="color:#1976d2; font-weight:600; background:none; border:none; cursor:pointer; font-size:15px; padding:2px 8px; border-radius:4px;"
+                                        onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='none'"
+                                        title="Click to view result">{{ perf.practical_scores[practical_name] }}</button>
+                                    {% else %}<span style="color:#999;">-</span>{% endif %}
+                                </td>
+                                {% endfor %}
+                                {% set submitted_count = perf.practical_scores | length %}
+                                <td style="font-weight:600; color:#2e7d32; text-align:center;">
+                                    {% if submitted_count > 0 %}{{ perf.total }}{% else %}<span style="color:#999;">-</span>{% endif %}
+                                </td>
+                                <td style="font-weight:600; color:#2e7d32; text-align:center;">
+                                    {% if submitted_count > 0 %}{{ "%.2f"|format(perf.average) }}{% else %}<span style="color:#999;">-</span>{% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="{{ 7 + practicals|length }}" style="text-align:center;">No students registered yet</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div style="text-align:center; margin-top:20px;">
+                    <a href="/export_excel?subject={{ selected_subject }}&batch={{ selected_batch }}" class="btn btn-primary" style="text-decoration:none;">Download Excel</a>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-practicals" class="dashboard-section">
+            <div class="card">
+                <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+                    <button onclick="showAddSubjectModal()" class="btn btn-primary">Add Subject</button>
+                </div>
+                <h2>Practical List</h2>
+                <div style="margin-bottom:20px; padding:15px; background:#f8f9fa; border-radius:8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <span class="batch-filter-label">Filter by Subject:</span>
+                            <select onchange="updateFilters('subject', this.value)" id="subjectFilterPracticals" style="padding:8px 15px; border:2px solid #1976d2; border-radius:6px; margin-right:20px; min-width:220px;">
+                                {% for subject in subjects %}
+                                <option value="{{ subject.name }}" {% if selected_subject == subject.name %}selected{% endif %}>{{ subject.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <span style="background:#e3f2fd; color:#1976d2; padding:5px 14px; border-radius:20px; font-size:13px; font-weight:600; border:1px solid #bbdefb;">
+                            Subject: {{ selected_subject }} &nbsp;|&nbsp; {{ practicals|length }} practical(s)
+                        </span>
+                    </div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <p style="color:#666; margin:0;">Add or remove practicals for students</p>
+                    <button class="btn btn-primary add-practical-btn">Add Practical</button>
+                </div>
+                <ul class="practical-list" id="practical-list">
+                    {% for practical in practicals %}
+                    <li class="practical-item" data-value="{{ practical }}">
+                        <span class="practical-name">{{ practical }}</span>
+                        <div style="display:flex; gap:8px;">
+                            <button
+                                data-practical="{{ practical | e }}"
+                                class="open-aq-btn"
+                                style="padding:6px 14px; background:#2e7d32; color:white; border:none; border-radius:6px; cursor:pointer; font-size:13px; font-weight:600;"
+                                onmouseover="this.style.background='#1b5e20'"
+                                onmouseout="this.style.background='#2e7d32'">
+                                ➕ Add Questions
+                            </button>
+                            <button class="remove-btn" onclick="removePractical('{{ practical | e }}')">Remove</button>
+                        </div>
+                    </li>
+                    {% else %}
+                    <li style="color:#999; text-align:center; padding:20px;">No practicals added yet</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </section>
+
+        <section id="section-about" class="dashboard-section">
+            <div class="card">
+                <div style="text-align:center; margin-bottom:35px;">
+                    <h2 style="font-size:28px; color:#1976d2; margin-bottom:8px;">About Us</h2>
+                    <p style="color:#666; font-size:15px;">Meet the team behind the Student Practical Assessment System</p>
+                    <div style="width:60px; height:4px; background:linear-gradient(135deg,#1976d2,#42a5f5); border-radius:2px; margin:12px auto 0;"></div>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:25px; justify-items:center;">
+                    <!-- Member 1: Janhavi Nandan -->
+                    <div style="text-align:center; background:linear-gradient(135deg,#fce4ec,#fff); border-radius:16px; padding:25px 20px; box-shadow:0 4px 15px rgba(233,30,99,0.1); border:2px solid #f8bbd0; width:100%; max-width:200px; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <div style="width:85px; height:85px; border-radius:50%; background:#fce4ec; border:3px solid #e91e63; display:flex; align-items:center; justify-content:center; margin:0 auto 15px; font-size:48px;">👩‍💻</div>
+                        <h4 style="margin:0 0 5px; color:#333; font-size:15px;">Janhavi Nandan</h4>
+                        <span style="display:inline-block; background:#e91e63; color:white; padding:3px 12px; border-radius:20px; font-size:11px; font-weight:600;">Developer</span>
+                    </div>
+                    <!-- Member 2: Vishal Misal -->
+                    <div style="text-align:center; background:linear-gradient(135deg,#e8eaf6,#fff); border-radius:16px; padding:25px 20px; box-shadow:0 4px 15px rgba(63,81,181,0.1); border:2px solid #9acee6; width:100%; max-width:200px; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <div style="width:85px; height:85px; border-radius:50%; background:#e8eaf6; border:3px solid #3fadb5; display:flex; align-items:center; justify-content:center; margin:0 auto 15px; font-size:48px;">👨‍💻</div>
+                        <h4 style="margin:0 0 5px; color:#333; font-size:15px;">Vishal Misal</h4>
+                        <span style="display:inline-block; background:#09cfe6; color:white; padding:3px 12px; border-radius:20px; font-size:11px; font-weight:600;">Developer</span>
+                    </div>
+                    <!-- Member 3: Kunal Patil -->
+                    <div style="text-align:center; background:linear-gradient(135deg,#e3f2fd,#fff); border-radius:16px; padding:25px 20px; box-shadow:0 4px 15px rgba(25,118,210,0.1); border:2px solid #bbdefb; width:100%; max-width:200px; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <div style="width:85px; height:85px; border-radius:50%; background:#e3f2fd; border:3px solid #1976d2; display:flex; align-items:center; justify-content:center; margin:0 auto 15px; font-size:48px;">👨‍💼</div>
+                        <h4 style="margin:0 0 5px; color:#333; font-size:15px;">Kunal Patil</h4>
+                        <span style="display:inline-block; background:#1976d2; color:white; padding:3px 12px; border-radius:20px; font-size:11px; font-weight:600;">Team Member</span>
+                    </div>
+                    <!-- Member 4: Dhiraj Patil -->
+                    <div style="text-align:center; background:linear-gradient(135deg,#e3f2fd,#fff); border-radius:16px; padding:25px 20px; box-shadow:0 4px 15px rgba(25,118,210,0.1); border:2px solid #bbdefb; width:100%; max-width:200px; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <div style="width:85px; height:85px; border-radius:50%; background:#e3f2fd; border:3px solid #1976d2; display:flex; align-items:center; justify-content:center; margin:0 auto 15px; font-size:48px;">👨‍💼</div>
+                        <h4 style="margin:0 0 5px; color:#333; font-size:15px;">Dhiraj Patil</h4>
+                        <span style="display:inline-block; background:#1976d2; color:white; padding:3px 12px; border-radius:20px; font-size:11px; font-weight:600;">Team Member</span>
+                    </div>
+                    <!-- Member 5: Mansi Patil -->
+                    <div style="text-align:center; background:linear-gradient(135deg,#fce4ec,#fff); border-radius:16px; padding:25px 20px; box-shadow:0 4px 15px rgba(233,30,99,0.1); border:2px solid #f8bbd0; width:100%; max-width:200px; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <div style="width:85px; height:85px; border-radius:50%; background:#fce4ec; border:3px solid #e91e63; display:flex; align-items:center; justify-content:center; margin:0 auto 15px; font-size:48px;">👩‍💼</div>
+                        <h4 style="margin:0 0 5px; color:#333; font-size:15px;">Mansi Patil</h4>
+                        <span style="display:inline-block; background:#e91e63; color:white; padding:3px 12px; border-radius:20px; font-size:11px; font-weight:600;">Team Member</span>
+                    </div>
+                    <!-- Member 6: Rakshanda Kakade -->
+                    <div style="text-align:center; background:linear-gradient(135deg,#fce4ec,#fff); border-radius:16px; padding:25px 20px; box-shadow:0 4px 15px rgba(233,30,99,0.1); border:2px solid #f8bbd0; width:100%; max-width:200px; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <div style="width:85px; height:85px; border-radius:50%; background:#fce4ec; border:3px solid #e91e63; display:flex; align-items:center; justify-content:center; margin:0 auto 15px; font-size:48px;">👩‍💼</div>
+                        <h4 style="margin:0 0 5px; color:#333; font-size:15px;">Rakshanda Kakade</h4>
+                        <span style="display:inline-block; background:#e91e63; color:white; padding:3px 12px; border-radius:20px; font-size:11px; font-weight:600;">Team Member</span>
+                    </div>
+                </div>
+                <div style="text-align:center; margin-top:35px; padding:20px; background:linear-gradient(135deg,#e3f2fd,#fce4ec); border-radius:12px;">
+                    <p style="color:#555; font-size:14px; margin:0;">
+                        🎓 <strong>SPAS</strong> — Student Practical Assessment System<br>
+                        <span style="font-size:13px; color:#777;">Built with dedication by our team © 2026</span>
+                    </p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ADD PRACTICAL MODAL -->
+    <div id="add-practical-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Add New Practical</h3>
+            <form id="add-practical-form">
+                <label>Select Subject</label>
+                <select id="practical-subject-select" required style="width:100%; padding:10px; border:2px solid #1976d2; border-radius:6px; margin-bottom:15px;">
+                    {% for subject in subjects %}
+                    <option value="{{ subject.id }}">{{ subject.name }}</option>
+                    {% endfor %}
+                </select>
+                <label style="display:block; margin-bottom:6px; font-weight:600; color:#333;">
+                    Practical Name <span style="color:#c62828;">*</span>
+                </label>
+                <input type="text" id="practical-input"
+                    placeholder="e.g., Practical No: 1 Write a JavaScript program..."
+                    required
+                    style="width:100%; padding:10px 12px; border:2px solid #1976d2; border-radius:6px; font-size:14px; box-sizing:border-box; outline:none;"
+                    onfocus="this.style.borderColor='#1565c0'"
+                    onblur="this.style.borderColor='#1976d2'">
+                <div class="modal-buttons" style="margin-top:18px;">
+                    <button type="submit" class="btn btn-primary">Add Practical</button>
+                    <button type="button" class="btn btn-secondary close-modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ADD SUBJECT MODAL -->
+    <div id="addSubjectModal" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5);">
+        <div style="background-color:#fff; margin:10% auto; padding:30px; border-radius:12px; max-width:450px; box-shadow:0 8px 24px rgba(0,0,0,0.3); position:relative;">
+            <span onclick="closeOverlay('addSubjectModal')" style="color:#aaa; float:right; font-size:28px; font-weight:bold; cursor:pointer; line-height:20px;">&times;</span>
+            <h2 style="color:#1976d2; margin-bottom:20px;">Add New Subject</h2>
+            <p style="color:#666; margin-bottom:20px;">Create a new subject to organize your practicals.</p>
+            <form id="addSubjectForm">
+                <label style="display:block; margin-bottom:5px; font-weight:600;">Subject Name</label>
+                <input type="text" id="subjectName" required placeholder="e.g., IFS, CSS, Database"
+                    style="width:100%; padding:12px; border:2px solid #1976d2; border-radius:6px; margin-bottom:15px; font-size:15px;">
+                <button type="submit" style="width:100%; padding:12px; background:#1976d2; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:16px; font-weight:600;">Add Subject</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- RESULT MODAL -->
+    <div id="resultModal" style="display:none; position:fixed; z-index:99999; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.6); overflow-y:auto;">
+        <div style="background:#fff; margin:30px auto; padding:0; border-radius:14px; max-width:750px; width:95%; box-shadow:0 10px 40px rgba(0,0,0,0.3); overflow:hidden;">
+            <div style="background:linear-gradient(135deg,#1976d2,#42a5f5); padding:20px 25px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <h2 style="color:white; margin:0; font-size:20px;">Student Result</h2>
+                    <p id="modalSubtitle" style="color:rgba(255,255,255,0.85); margin:4px 0 0; font-size:14px;"></p>
+                </div>
+                <button onclick="closeOverlay('resultModal')" style="background:rgba(255,255,255,0.2); border:2px solid rgba(255,255,255,0.5); color:white; width:36px; height:36px; border-radius:50%; font-size:20px; cursor:pointer;">&times;</button>
+            </div>
+            <div id="modalBody" style="padding:25px;">
+                <div id="modalLoading" style="text-align:center; padding:40px;">
+                    <div style="width:45px; height:45px; border:4px solid #e3f2fd; border-top:4px solid #1976d2; border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 15px;"></div>
+                    <p style="color:#666;">Loading result...</p>
+                </div>
+                <div id="modalContent" style="display:none;">
+                    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:25px;">
+                        <div style="background:#e3f2fd; border-radius:10px; padding:15px; text-align:center;">
+                            <div id="modalScore" style="font-size:26px; font-weight:700; color:#1976d2;"></div>
+                            <div style="font-size:12px; color:#666; margin-top:4px;">Score</div>
+                        </div>
+                        <div style="background:#e8f5e9; border-radius:10px; padding:15px; text-align:center;">
+                            <div id="modalCorrect" style="font-size:26px; font-weight:700; color:#2e7d32;"></div>
+                            <div style="font-size:12px; color:#666; margin-top:4px;">Correct</div>
+                        </div>
+                        <div style="background:#ffebee; border-radius:10px; padding:15px; text-align:center;">
+                            <div id="modalWrong" style="font-size:26px; font-weight:700; color:#c62828;"></div>
+                            <div style="font-size:12px; color:#666; margin-top:4px;">Wrong</div>
+                        </div>
+                        <div style="background:#fff9c4; border-radius:10px; padding:15px; text-align:center;">
+                            <div id="modalAttempted" style="font-size:26px; font-weight:700; color:#f57f17;"></div>
+                            <div style="font-size:12px; color:#666; margin-top:4px;">Attempted</div>
+                        </div>
+                    </div>
+                    <div style="background:#f8f9fa; border-radius:10px; padding:15px; margin-bottom:10px;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                            <p style="margin:0; font-size:14px;"><strong>Name:</strong> <span id="modalName"></span></p>
+                            <p style="margin:0; font-size:14px;"><strong>Roll No:</strong> <span id="modalRoll"></span></p>
+                            <p style="margin:0; font-size:14px;"><strong>Branch:</strong> <span id="modalBranch"></span></p>
+                            <p style="margin:0; font-size:14px;"><strong>Batch:</strong> <span id="modalBatch"></span></p>
+                            <p style="margin:0; font-size:14px;"><strong>Date:</strong> <span id="modalDate"></span></p>
+                            <p style="margin:0; font-size:14px;"><strong>Practical:</strong> <span id="modalPractical"></span></p>
+                        </div>
+                    </div>
+                </div>
+                <div id="modalError" style="display:none; text-align:center; padding:30px; color:#c62828;">
+                    <p style="font-size:18px;"> Result not found !!!</p>
+                    <p style="color:#666; font-size:14px;">No result available for this student and practical.</p>
+                </div>
+            </div>
+            <div style="padding:15px 25px; background:#f8f9fa; border-top:1px solid #e0e0e0; display:flex; justify-content:space-between; align-items:center;">
+                <button id="showTxtBtn" onclick="showTxtResult()" style="display:none; padding:10px 20px; background:#1976d2; color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:600;">📄 Show Result File</button>
+                <button onclick="closeOverlay('resultModal')" style="padding:10px 25px; background:#e0e0e0; color:#333; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:600;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TXT FILE VIEWER MODAL -->
+    <div id="txtModal" style="display:none; position:fixed; z-index:999999; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.75); overflow-y:auto;">
+        <div style="background:#1e1e1e; margin:20px auto; padding:0; border-radius:12px; max-width:700px; width:95%; box-shadow:0 10px 40px rgba(0,0,0,0.5); overflow:hidden;">
+            <div style="background:#2d2d2d; padding:15px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #444;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:20px;">📄</span>
+                    <div>
+                        <h3 style="color:#e0e0e0; margin:0; font-size:16px;">Result File</h3>
+                        <p id="txtFilename" style="color:#888; margin:2px 0 0; font-size:12px;"></p>
+                    </div>
+                </div>
+                <button onclick="closeOverlay('txtModal')" style="background:#c62828; border:none; color:white; width:32px; height:32px; border-radius:50%; font-size:18px; cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:20px;">
+                <div id="txtLoading" style="text-align:center; padding:30px; color:#888;">
+                    <div style="width:35px; height:35px; border:3px solid #444; border-top:3px solid #42a5f5; border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 10px;"></div>
+                    Loading file...
+                </div>
+                <pre id="txtContent" style="display:none; color:#e0e0e0; font-family:'Courier New',monospace; font-size:13px; line-height:1.7; white-space:pre-wrap; word-wrap:break-word; margin:0; background:#1e1e1e; max-height:70vh; overflow-y:auto;"></pre>
+            </div>
+            <div style="padding:12px 20px; background:#2d2d2d; border-top:1px solid #444; display:flex; justify-content:flex-end;">
+                <button onclick="closeOverlay('txtModal')" style="padding:8px 20px; background:#555; color:white; border:none; border-radius:6px; cursor:pointer; font-size:13px; font-weight:600;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADD QUESTIONS MODAL -->
+    <div id="addQuestionsModal" style="display:none; position:fixed; z-index:99998; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.6); overflow-y:auto;">
+        <div style="background:#fff; margin:20px auto; padding:0; border-radius:14px; max-width:700px; width:95%; box-shadow:0 10px 40px rgba(0,0,0,0.3); overflow:hidden;">
+            <div style="background:linear-gradient(135deg,#2e7d32,#66bb6a); padding:20px 25px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <h2 style="color:white; margin:0; font-size:20px;">Add Questions</h2>
+                    <p id="aqPracticalName" style="color:rgba(255,255,255,0.9); margin:4px 0 0; font-size:13px; word-break:break-all;"></p>
+                </div>
+                <button onclick="closeOverlay('addQuestionsModal')" style="background:rgba(255,255,255,0.2); border:2px solid rgba(255,255,255,0.5); color:white; width:36px; height:36px; border-radius:50%; font-size:20px; cursor:pointer; flex-shrink:0;">&times;</button>
+            </div>
+            <div style="padding:12px 25px; background:#f1f8e9; border-bottom:2px solid #c8e6c9; display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:14px; color:#333;">Questions added:</span>
+                <span id="aqCountBadge" style="background:#2e7d32; color:white; padding:4px 16px; border-radius:20px; font-weight:700; font-size:15px;">0 / 20</span>
+            </div>
+            <div id="aqExistingList" style="max-height:200px; overflow-y:auto; padding:0 25px; border-bottom:2px solid #e8f5e9; display:none;">
+                <h4 style="color:#2e7d32; margin:12px 0 8px; font-size:14px;">Existing Questions:</h4>
+                <ul id="aqQuestionsList" style="list-style:none; padding:0; margin:0 0 12px;"></ul>
+            </div>
+            <div style="padding:20px 25px;">
+                <div id="aqLimitMsg" style="display:none; background:#ffebee; border:2px solid #ef9a9a; border-radius:8px; padding:14px; text-align:center; color:#c62828; font-weight:600; margin-bottom:15px;">
+                    ⚠️ Maximum limit of 20 questions reached for this practical.
+                </div>
+                <div id="aqFormArea">
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; font-weight:600; margin-bottom:6px; color:#333;">Question <span style="color:#c62828;">*</span></label>
+                        <textarea id="aqQuestion" rows="3" placeholder="Enter your question here..."
+                            style="width:100%; padding:10px 12px; border:2px solid #c8e6c9; border-radius:8px; font-size:14px; resize:vertical; outline:none; box-sizing:border-box;"
+                            onfocus="this.style.borderColor='#2e7d32'" onblur="this.style.borderColor='#c8e6c9'"></textarea>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:15px;">
+                        <div>
+                            <label style="display:block; font-weight:600; margin-bottom:5px; color:#333;">Option A <span style="color:#c62828;">*</span></label>
+                            <input type="text" id="aqOptA" placeholder="Option A" style="width:100%; padding:9px 12px; border:2px solid #c8e6c9; border-radius:8px; font-size:14px; outline:none; box-sizing:border-box;" onfocus="this.style.borderColor='#2e7d32'" onblur="this.style.borderColor='#c8e6c9'">
+                        </div>
+                        <div>
+                            <label style="display:block; font-weight:600; margin-bottom:5px; color:#333;">Option B <span style="color:#c62828;">*</span></label>
+                            <input type="text" id="aqOptB" placeholder="Option B" style="width:100%; padding:9px 12px; border:2px solid #c8e6c9; border-radius:8px; font-size:14px; outline:none; box-sizing:border-box;" onfocus="this.style.borderColor='#2e7d32'" onblur="this.style.borderColor='#c8e6c9'">
+                        </div>
+                        <div>
+                            <label style="display:block; font-weight:600; margin-bottom:5px; color:#333;">Option C <span style="color:#c62828;">*</span></label>
+                            <input type="text" id="aqOptC" placeholder="Option C" style="width:100%; padding:9px 12px; border:2px solid #c8e6c9; border-radius:8px; font-size:14px; outline:none; box-sizing:border-box;" onfocus="this.style.borderColor='#2e7d32'" onblur="this.style.borderColor='#c8e6c9'">
+                        </div>
+                        <div>
+                            <label style="display:block; font-weight:600; margin-bottom:5px; color:#333;">Option D <span style="color:#c62828;">*</span></label>
+                            <input type="text" id="aqOptD" placeholder="Option D" style="width:100%; padding:9px 12px; border:2px solid #c8e6c9; border-radius:8px; font-size:14px; outline:none; box-sizing:border-box;" onfocus="this.style.borderColor='#2e7d32'" onblur="this.style.borderColor='#c8e6c9'">
+                        </div>
+                    </div>
+                    <div style="margin-bottom:20px;">
+                        <label style="display:block; font-weight:600; margin-bottom:6px; color:#333;">Correct Answer <span style="color:#c62828;">*</span></label>
+                        <select id="aqCorrect" style="width:100%; padding:10px 12px; border:2px solid #c8e6c9; border-radius:8px; font-size:14px; outline:none; background:white;" onfocus="this.style.borderColor='#2e7d32'" onblur="this.style.borderColor='#c8e6c9'">
+                            <option value="">-- Select correct answer --</option>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                        </select>
+                    </div>
+                    <div id="aqError"   style="display:none; color:#c62828; background:#ffebee; padding:10px 14px; border-radius:6px; margin-bottom:10px; font-size:14px;"></div>
+                    <div id="aqSuccess" style="display:none; color:#2e7d32; background:#e8f5e9; padding:10px 14px; border-radius:6px; margin-bottom:10px; font-size:14px;"></div>
+                    <button id="aqSubmitBtn" onclick="submitQuestion()"
+                        style="width:100%; padding:13px; background:#2e7d32; color:white; border:none; border-radius:8px; cursor:pointer; font-size:16px; font-weight:600;"
+                        onmouseover="this.style.background='#1b5e20'" onmouseout="this.style.background='#2e7d32'">
+                        ➕ Add Question
+                    </button>
+                </div>
+            </div>
+            <div style="padding:12px 25px; background:#f8f9fa; border-top:1px solid #e0e0e0; display:flex; justify-content:flex-end;">
+                <button onclick="closeOverlay('addQuestionsModal')" style="padding:9px 22px; background:#e0e0e0; color:#333; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:600;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2026 | Student Practical Assessment System</p>
+    </footer>
+
+    <style>
+        @keyframes spin { 0%{transform:rotate(0deg);} 100%{transform:rotate(360deg);} }
+    </style>
+
+    <script>
+    function closeOverlay(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+        var ids = ['resultModal','txtModal','addQuestionsModal','addSubjectModal'];
+        var anyOpen = ids.some(function(mid){
+            var m = document.getElementById(mid);
+            return m && m.style.display === 'block';
+        });
+        if (!anyOpen) document.body.style.overflow = '';
+    }
+
+    document.addEventListener('click', function(e) {
+        ['resultModal','txtModal','addQuestionsModal','addSubjectModal'].forEach(function(id){
+            var el = document.getElementById(id);
+            if (el && e.target === el) closeOverlay(id);
+        });
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape') return;
+        var order = ['txtModal','addQuestionsModal','resultModal','addSubjectModal'];
+        for (var i = 0; i < order.length; i++) {
+            var el = document.getElementById(order[i]);
+            if (el && el.style.display === 'block') { closeOverlay(order[i]); break; }
+        }
+    });
+
+    function showPracticalPanel(idx, cardElement) {
+        document.querySelectorAll('.practical-submissions-panel').forEach(function(p){ p.style.display='none'; });
+        document.querySelectorAll('.practical-tab-card').forEach(function(c){ c.classList.remove('active'); });
+        var panel = document.getElementById('panel-' + idx);
+        if (panel) panel.style.display = 'block';
+        cardElement.classList.add('active');
+    }
+    function updateFilters(type, value) {
+        var sS = document.getElementById('subjectFilterStudents');
+        var sP = document.getElementById('subjectFilterPracticals');
+        var bF = document.getElementById('batch-filter-select');
+        var subject = type === 'subject' ? value : (sS ? sS.value : (sP ? sP.value : 'all'));
+        var batch   = type === 'batch'   ? value : (bF ? bF.value : 'all');
+        window.location.href = '?subject=' + subject + '&batch=' + batch;
+    }
+    function changeBatchFilter() { updateFilters('batch', document.getElementById('batch-filter-select').value); }
+    function showAddSubjectModal() { document.getElementById('addSubjectModal').style.display = 'block'; }
+    function confirmDeleteFacultyAccount() {
+        if (confirm('WARNING: This will permanently delete your faculty account!\n\nThis action CANNOT be undone.\n\nAre you absolutely sure?')) {
+            if (confirm('FINAL CONFIRMATION: Delete my faculty account permanently?')) {
+                var form = document.createElement('form');
+                form.method = 'POST'; form.action = '/delete_account';
+                document.body.appendChild(form); form.submit();
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('practical-list').addEventListener('click', function(e) {
+            var btn = e.target.closest('.open-aq-btn');
+            if (!btn) return;
+            var practicalName = btn.getAttribute('data-practical');
+            if (practicalName) openAddQuestionsModal(practicalName);
+        });
+    });
+
+    document.getElementById('addSubjectForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        var name = document.getElementById('subjectName').value.trim();
+        if (!name) { alert('Please enter a subject name'); return; }
+        try {
+            var res  = await fetch('/api/add_subject', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:name}) });
+            var data = await res.json();
+            if (data.success) { alert('Subject "' + name + '" added successfully!'); location.reload(); }
+            else { alert('Error: ' + data.message); }
+        } catch(err) { alert('Error: ' + err.message); }
+    });
+
+    var currentRollNo = '', currentPracticalName = '';
+
+    async function showResultModal(rollNo, practicalName) {
+        currentRollNo = rollNo; currentPracticalName = practicalName;
+        document.getElementById('resultModal').style.display    = 'block';
+        document.getElementById('modalLoading').style.display   = 'block';
+        document.getElementById('modalContent').style.display   = 'none';
+        document.getElementById('modalError').style.display     = 'none';
+        document.getElementById('showTxtBtn').style.display     = 'none';
+        document.getElementById('modalSubtitle').textContent    = rollNo + ' — ' + practicalName;
+        document.body.style.overflow = 'hidden';
+        try {
+            var res  = await fetch('/faculty/get_result_data/' + rollNo + '/' + encodeURIComponent(practicalName));
+            var data = await res.json();
+            document.getElementById('modalLoading').style.display = 'none';
+            if (data.success) {
+                var r = data.result;
+                document.getElementById('modalScore').textContent     = r.score         || '-';
+                document.getElementById('modalCorrect').textContent   = r.correct        || '0';
+                document.getElementById('modalWrong').textContent     = r.wrong          || '0';
+                document.getElementById('modalAttempted').textContent = r.attempted      || '0';
+                document.getElementById('modalName').textContent      = r.name           || '-';
+                document.getElementById('modalRoll').textContent      = r.roll_no        || '-';
+                document.getElementById('modalBranch').textContent    = r.branch         || '-';
+                document.getElementById('modalBatch').textContent     = r.batch          || '-';
+                document.getElementById('modalDate').textContent      = r.datetime       || '-';
+                document.getElementById('modalPractical').textContent = r.practical_name || '-';
+                document.getElementById('modalContent').style.display = 'block';
+                document.getElementById('showTxtBtn').style.display   = 'block';
+            } else { document.getElementById('modalError').style.display = 'block'; }
+        } catch(err) {
+            document.getElementById('modalLoading').style.display = 'none';
+            document.getElementById('modalError').style.display   = 'block';
+        }
+    }
+
+    async function showTxtResult() {
+        document.getElementById('txtModal').style.display   = 'block';
+        document.getElementById('txtLoading').style.display = 'block';
+        document.getElementById('txtContent').style.display = 'none';
+        document.getElementById('txtFilename').textContent  = 'Loading...';
+        try {
+            var res  = await fetch('/faculty/get_result_txt/' + currentRollNo + '/' + encodeURIComponent(currentPracticalName));
+            var data = await res.json();
+            document.getElementById('txtLoading').style.display = 'none';
+            if (data.success) {
+                document.getElementById('txtContent').textContent   = data.content;
+                document.getElementById('txtContent').style.display = 'block';
+                document.getElementById('txtFilename').textContent  = data.filename;
+            } else {
+                document.getElementById('txtContent').textContent   = 'Error: Result file not found.';
+                document.getElementById('txtContent').style.display = 'block';
+            }
+        } catch(err) {
+            document.getElementById('txtLoading').style.display = 'none';
+            document.getElementById('txtContent').textContent   = 'Error loading file.';
+            document.getElementById('txtContent').style.display = 'block';
+        }
+    }
+
+    var currentAQPractical = '';
+
+    function openAddQuestionsModal(practicalName) {
+        currentAQPractical = practicalName;
+        document.getElementById('aqPracticalName').textContent      = practicalName;
+        document.getElementById('addQuestionsModal').style.display  = 'block';
+        document.body.style.overflow = 'hidden';
+        clearAQForm();
+        refreshQuestionList();
+    }
+
+    function clearAQForm() {
+        ['aqQuestion','aqOptA','aqOptB','aqOptC','aqOptD'].forEach(function(id){
+            document.getElementById(id).value = '';
+        });
+        document.getElementById('aqCorrect').value         = '';
+        document.getElementById('aqError').style.display   = 'none';
+        document.getElementById('aqSuccess').style.display = 'none';
+    }
+
+    async function refreshQuestionList() {
+        if (!currentAQPractical) return;
+        try {
+            var res = await fetch('/api/get_questions?practical=' + encodeURIComponent(currentAQPractical));
+            if (!res.ok) { console.error('get_questions HTTP error:', res.status); return; }
+            var ct = res.headers.get('content-type') || '';
+            if (!ct.includes('application/json')) { console.error('Non-JSON from get_questions'); return; }
+            var data = await res.json();
+            if (!data.success) { console.error('get_questions failed:', data.message); return; }
+
+            var questions = data.questions || [];
+            var count     = questions.length;
+
+            /* badge shows count / 20 */
+            var badge = document.getElementById('aqCountBadge');
+            badge.textContent      = count + ' / 20';
+            badge.style.background = count >= 20 ? '#c62828' : (count >= 15 ? '#f57f17' : '#2e7d32');
+
+            /* list */
+            var listEl  = document.getElementById('aqQuestionsList');
+            var listDiv = document.getElementById('aqExistingList');
+            listEl.innerHTML = '';
+
+            if (count > 0) {
+                listDiv.style.display = 'block';
+                questions.forEach(function(q, i) {
+                    var li  = document.createElement('li');
+                    li.style.cssText = 'padding:7px 0; border-bottom:1px solid #e8f5e9; font-size:13px; color:#555; display:flex; justify-content:space-between; align-items:center; gap:8px;';
+
+                    var txt = document.createElement('span');
+                    var preview = q.question.length > 80 ? q.question.substring(0,80) + '...' : q.question;
+                    txt.textContent = 'Q' + (i+1) + '. ' + preview;
+
+                    var rmBtn = document.createElement('button');
+                    rmBtn.textContent = 'Remove';
+                    rmBtn.style.cssText = 'flex-shrink:0; background:none; border:1px solid #ef9a9a; color:#c62828; padding:3px 10px; border-radius:4px; cursor:pointer; font-size:11px;';
+                    rmBtn.setAttribute('data-qid', q.id);
+                    rmBtn.addEventListener('click', function(){
+                        removeQuestion(parseInt(this.getAttribute('data-qid')));
+                    });
+
+                    li.appendChild(txt);
+                    li.appendChild(rmBtn);
+                    listEl.appendChild(li);
+                });
+            } else {
+                listDiv.style.display = 'none';
+            }
+
+            /* hide form and show warning at 20 */
+            document.getElementById('aqLimitMsg').style.display = count >= 20 ? 'block' : 'none';
+            document.getElementById('aqFormArea').style.display = count >= 20 ? 'none'  : 'block';
+
+        } catch(err) { console.error('refreshQuestionList error:', err); }
+    }
+
+    async function submitQuestion() {
+        var question = document.getElementById('aqQuestion').value.trim();
+        var optA     = document.getElementById('aqOptA').value.trim();
+        var optB     = document.getElementById('aqOptB').value.trim();
+        var optC     = document.getElementById('aqOptC').value.trim();
+        var optD     = document.getElementById('aqOptD').value.trim();
+        var correct  = document.getElementById('aqCorrect').value;
+
+        document.getElementById('aqError').style.display   = 'none';
+        document.getElementById('aqSuccess').style.display = 'none';
+
+        if (!question) { showAQMsg('error','Please enter the question text.'); return; }
+        if (!optA)     { showAQMsg('error','Please enter Option A.');           return; }
+        if (!optB)     { showAQMsg('error','Please enter Option B.');           return; }
+        if (!optC)     { showAQMsg('error','Please enter Option C.');           return; }
+        if (!optD)     { showAQMsg('error','Please enter Option D.');           return; }
+        if (!correct)  { showAQMsg('error','Please select the correct answer.');return; }
+
+        var btn = document.getElementById('aqSubmitBtn');
+        btn.disabled = true; btn.textContent = 'Adding...';
+
+        try {
+            var res = await fetch('/api/add_question', {
+                method:  'POST',
+                headers: {'Content-Type':'application/json'},
+                body:    JSON.stringify({
+                    practical: currentAQPractical,
+                    question:  question,
+                    options:   {A:optA, B:optB, C:optC, D:optD},
+                    answer:    correct
+                })
+            });
+
+            var ct = res.headers.get('content-type') || '';
+            if (!ct.includes('application/json')) {
+                var txt = await res.text();
+                console.error('Non-JSON (' + res.status + '):', txt.substring(0,300));
+                showAQMsg('error','Server error (' + res.status + '). Check Flask console.');
+                btn.disabled = false; btn.textContent = '➕ Add Question';
+                return;
+            }
+
+            var data = await res.json();
+            if (data.success) {
+                clearAQForm();
+                showAQMsg('success','✓ Question added successfully!');
+                await refreshQuestionList();
+            } else {
+                showAQMsg('error', data.message || 'Failed to add question.');
+            }
+        } catch(err) {
+            console.error('submitQuestion error:', err);
+            showAQMsg('error','Connection error: ' + err.message);
+        } finally {
+            btn.disabled = false; btn.textContent = '➕ Add Question';
+        }
+    }
+
+    async function removeQuestion(questionId) {
+        if (!confirm('Remove this question?')) return;
+        try {
+            var res = await fetch('/api/delete_question', {
+                method:  'POST',
+                headers: {'Content-Type':'application/json'},
+                body:    JSON.stringify({id: questionId})
+            });
+            var ct = res.headers.get('content-type') || '';
+            if (!ct.includes('application/json')) {
+                showAQMsg('error','Server error (' + res.status + ') while removing.');
+                return;
+            }
+            var data = await res.json();
+            if (data.success) { showAQMsg('success','✓ Question removed.'); await refreshQuestionList(); }
+            else { showAQMsg('error','Remove failed: ' + data.message); }
+        } catch(err) {
+            console.error('removeQuestion error:', err);
+            showAQMsg('error','Connection error: ' + err.message);
+        }
+    }
+
+    function showAQMsg(type, msg) {
+        var errEl = document.getElementById('aqError');
+        var sucEl = document.getElementById('aqSuccess');
+        if (type === 'error') {
+            errEl.textContent = msg; errEl.style.display = 'block';
+            sucEl.style.display = 'none';
+        } else {
+            sucEl.textContent = msg; sucEl.style.display = 'block';
+            errEl.style.display = 'none';
+            setTimeout(function(){ sucEl.style.display = 'none'; }, 3000);
+        }
+    }
+    </script>
+</body>
+</html>

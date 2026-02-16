@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero hero-small">
+    <h1>Online Practical Exam</h1>
+    <p>Answer carefully - you cannot come back once submitted</p>
+</section>
+
+<div id="timer" class="timer" data-remaining="{{ remaining }}">Time Left:</div>
+<div id="tab-warning" class="warning"></div>
+
+<div style="max-width: 900px; margin: 0 auto 20px auto; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 6px;">
+    <strong>Important Reminders:</strong>
+    <ul style="margin: 10px 0 0 20px; line-height: 1.6;">
+        <li>Do not switch tabs or windows</li>
+        <li>Copy-paste is disabled for exam integrity</li>
+        <li>Answer all questions you can</li>
+        <li>Submit only when you're sure</li>
+        <li>Back button is disabled during the exam</li>
+    </ul>
+</div>
+
+<form id="examForm" class="exam-form no-select" method="post" action="{{ url_for('submit_exam') }}">
+    {% for q in questions %}
+    <div class="question-block card">
+        <p><strong>Q{{ loop.index }}.</strong> {{ q.question }}</p>
+        {% for key, text in q.options.items() %}
+        <label class="option-label">
+            <input type="radio" name="answer_{{ q.id }}" value="{{ key }}">
+            <span class="option-tag">{{ key }}</span> {{ text }}
+        </label>
+        {% endfor %}
+    </div>
+    {% endfor %}
+    
+    <button type="submit" class="submit-btn">Submit Exam</button>
+</form>
+
+<script>
+    /* ---- Timer & Tab Monitor (existing) ---- */
+    document.addEventListener("DOMContentLoaded", function () {
+        const timerDiv = document.getElementById("timer");
+        const remaining = parseInt(timerDiv.getAttribute("data-remaining"));
+        startTimer(remaining);
+        initTabMonitor();
+    });
+
+    /* ---- BACK BUTTON DISABLE DURING EXAM ---- */
+    (function() {
+        // Push a dummy state so there's always a forward state to go back to
+        history.pushState(null, null, window.location.href);
+        history.pushState(null, null, window.location.href);
+
+        // Every time the user tries to go back, push them forward again
+        window.addEventListener('popstate', function(event) {
+            history.pushState(null, null, window.location.href);
+            showBackWarning();
+        });
+
+        // Also block the browser back via beforeunload ONLY if exam is not submitted
+        let examSubmitted = false;
+
+        document.getElementById('examForm').addEventListener('submit', function() {
+            examSubmitted = true;
+            // Remove all navigation blocks when submitting
+            window.onbeforeunload = null;
+        });
+
+        // Warn if trying to leave page (refresh, close tab, etc)
+        window.onbeforeunload = function(e) {
+            if (!examSubmitted) {
+                const msg = 'Your exam is in progress! Leaving this page will not submit your answers.';
+                e.returnValue = msg;
+                return msg;
+            }
+        };
+
+        // Show warning banner when back is pressed
+        function showBackWarning() {
+            const existing = document.getElementById('back-block-warning');
+            if (existing) {
+                existing.style.display = 'flex';
+                clearTimeout(existing._timer);
+                existing._timer = setTimeout(() => { existing.style.display = 'none'; }, 3000);
+                return;
+            }
+
+            const banner = document.createElement('div');
+            banner.id = 'back-block-warning';
+            banner.style.cssText = `
+                position: fixed;
+                top: 80px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #c62828;
+                color: white;
+                padding: 14px 28px;
+                border-radius: 10px;
+                font-size: 15px;
+                font-weight: 600;
+                z-index: 999999;
+                box-shadow: 0 4px 20px rgba(198,40,40,0.5);
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                animation: slideDown 0.3s ease;
+            `;
+            banner.innerHTML = '🚫 Back button is disabled during the exam!';
+            document.body.appendChild(banner);
+            banner._timer = setTimeout(() => { banner.style.display = 'none'; }, 3000);
+        }
+    })();
+
+    /* ---- BLOCK TAB KEY & ALT+LEFT (keyboard back) ---- */
+    document.addEventListener('keydown', function(e) {
+        // Block Alt+Left (browser back shortcut)
+        if (e.altKey && e.key === 'ArrowLeft') {
+            e.preventDefault();
+            history.pushState(null, null, window.location.href);
+        }
+        // Block Backspace when not in an input (acts as browser back in some browsers)
+        if (e.key === 'Backspace') {
+            const tag = document.activeElement.tagName.toLowerCase();
+            if (tag !== 'input' && tag !== 'textarea') {
+                e.preventDefault();
+            }
+        }
+    });
+</script>
+
+<style>
+@keyframes slideDown {
+    from { top: 60px; opacity: 0; }
+    to   { top: 80px; opacity: 1; }
+}
+</style>
+
+{% endblock %}
