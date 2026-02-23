@@ -1,1 +1,9 @@
-{}
+{{
+    "DV Agrawal": {
+        "faculty_id": "DV Agrawal",
+        "password": "abc@123",
+        "full_name": "Deepika V Agrawal",
+        "department": "Information Technology",
+        "email": "vishalmisal215@gmail.com"
+    }
+}}
