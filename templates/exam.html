@@ -20,7 +20,11 @@
     </ul>
 </div>
 
-<form id="examForm" class="exam-form no-select" method="post" action="{{ url_for('submit_exam') }}">
+<form id="examForm" class="exam-form no-select" method="POST" action="{{ url_for('submit_exam') }}">
+
+    {# ✅ FIX 1: Hidden field — sends practical_name to submit_exam route #}
+    <input type="hidden" name="practical_name" value="{{ practical_name }}">
+
     {% for q in questions %}
     <div class="question-block card">
         <p><strong>Q{{ loop.index }}.</strong> {{ q.question }}</p>
@@ -32,12 +36,47 @@
         {% endfor %}
     </div>
     {% endfor %}
-    
-    <button type="submit" class="submit-btn">Submit Exam</button>
+
+    <button type="submit" class="submit-btn" id="submitBtn">Submit Exam</button>
 </form>
 
 <script>
-    /* ---- Timer & Tab Monitor (existing) ---- */
+    let examSubmitted = false;
+
+    /* ✅ FIX 2: startTimer — calls autoSubmitExam() instead of redirecting */
+    function startTimer(seconds) {
+        const timerDiv = document.getElementById("timer");
+
+        function tick() {
+            if (seconds <= 0) {
+                timerDiv.textContent = "Time Left: 00:00";
+                autoSubmitExam();
+                return;
+            }
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            timerDiv.textContent = "Time Left: " + String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+
+            if (seconds <= 300) {   /* red under 5 min */
+                timerDiv.style.color = "#c62828";
+                timerDiv.style.fontWeight = "bold";
+            }
+            seconds--;
+            setTimeout(tick, 1000);
+        }
+        tick();
+    }
+
+    /* ✅ FIX 3: autoSubmitExam submits the FORM (POST) — not a page redirect */
+    function autoSubmitExam() {
+        if (examSubmitted) return;
+        examSubmitted = true;
+        window.onbeforeunload = null;
+        alert("⏰ Time is up! Your exam is being submitted now.");
+        document.getElementById("examForm").submit();
+    }
+
+    /* ---- Init on DOM ready ---- */
     document.addEventListener("DOMContentLoaded", function () {
         const timerDiv = document.getElementById("timer");
         const remaining = parseInt(timerDiv.getAttribute("data-remaining"));
@@ -45,85 +84,85 @@
         initTabMonitor();
     });
 
-    /* ---- BACK BUTTON DISABLE DURING EXAM ---- */
-    (function() {
-        // Push a dummy state so there's always a forward state to go back to
+    /* ✅ FIX 4: Prevent double-submit (button spam / timer + manual submit) */
+    document.getElementById("examForm").addEventListener("submit", function (e) {
+        if (examSubmitted) {
+            e.preventDefault();
+            return;
+        }
+        examSubmitted = true;
+        window.onbeforeunload = null;
+        const btn = document.getElementById("submitBtn");
+        btn.disabled = true;
+        btn.textContent = "Submitting...";
+    });
+
+    /* ---- Tab monitor ---- */
+    function initTabMonitor() {
+        let tabSwitches = 0;
+        document.addEventListener("visibilitychange", function () {
+            if (document.hidden && !examSubmitted) {
+                tabSwitches++;
+                const warn = document.getElementById("tab-warning");
+                if (warn) {
+                    warn.textContent = "⚠️ Warning: Tab switching detected (" + tabSwitches + " time(s))!";
+                    warn.style.display = "block";
+                }
+            }
+        });
+    }
+
+    /* ---- Back button disable ---- */
+    (function () {
         history.pushState(null, null, window.location.href);
         history.pushState(null, null, window.location.href);
 
-        // Every time the user tries to go back, push them forward again
-        window.addEventListener('popstate', function(event) {
+        window.addEventListener("popstate", function () {
             history.pushState(null, null, window.location.href);
             showBackWarning();
         });
 
-        // Also block the browser back via beforeunload ONLY if exam is not submitted
-        let examSubmitted = false;
-
-        document.getElementById('examForm').addEventListener('submit', function() {
-            examSubmitted = true;
-            // Remove all navigation blocks when submitting
-            window.onbeforeunload = null;
-        });
-
-        // Warn if trying to leave page (refresh, close tab, etc)
-        window.onbeforeunload = function(e) {
+        window.onbeforeunload = function (e) {
             if (!examSubmitted) {
-                const msg = 'Your exam is in progress! Leaving this page will not submit your answers.';
+                const msg = "Your exam is in progress! Leaving this page will not submit your answers.";
                 e.returnValue = msg;
                 return msg;
             }
         };
 
-        // Show warning banner when back is pressed
         function showBackWarning() {
-            const existing = document.getElementById('back-block-warning');
+            const existing = document.getElementById("back-block-warning");
             if (existing) {
-                existing.style.display = 'flex';
+                existing.style.display = "flex";
                 clearTimeout(existing._timer);
-                existing._timer = setTimeout(() => { existing.style.display = 'none'; }, 3000);
+                existing._timer = setTimeout(() => { existing.style.display = "none"; }, 3000);
                 return;
             }
-
-            const banner = document.createElement('div');
-            banner.id = 'back-block-warning';
+            const banner = document.createElement("div");
+            banner.id = "back-block-warning";
             banner.style.cssText = `
-                position: fixed;
-                top: 80px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: #c62828;
-                color: white;
-                padding: 14px 28px;
-                border-radius: 10px;
-                font-size: 15px;
-                font-weight: 600;
-                z-index: 999999;
-                box-shadow: 0 4px 20px rgba(198,40,40,0.5);
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                animation: slideDown 0.3s ease;
+                position:fixed; top:80px; left:50%; transform:translateX(-50%);
+                background:#c62828; color:#fff; padding:14px 28px;
+                border-radius:10px; font-size:15px; font-weight:600;
+                z-index:999999; box-shadow:0 4px 20px rgba(198,40,40,.5);
+                display:flex; align-items:center; gap:10px;
+                animation:slideDown .3s ease;
             `;
-            banner.innerHTML = '🚫 Back button is disabled during the exam!';
+            banner.innerHTML = "🚫 Back button is disabled during the exam!";
             document.body.appendChild(banner);
-            banner._timer = setTimeout(() => { banner.style.display = 'none'; }, 3000);
+            banner._timer = setTimeout(() => { banner.style.display = "none"; }, 3000);
         }
     })();
 
-    /* ---- BLOCK TAB KEY & ALT+LEFT (keyboard back) ---- */
-    document.addEventListener('keydown', function(e) {
-        // Block Alt+Left (browser back shortcut)
-        if (e.altKey && e.key === 'ArrowLeft') {
+    /* ---- Block Alt+Left & Backspace navigation ---- */
+    document.addEventListener("keydown", function (e) {
+        if (e.altKey && e.key === "ArrowLeft") {
             e.preventDefault();
             history.pushState(null, null, window.location.href);
         }
-        // Block Backspace when not in an input (acts as browser back in some browsers)
-        if (e.key === 'Backspace') {
+        if (e.key === "Backspace") {
             const tag = document.activeElement.tagName.toLowerCase();
-            if (tag !== 'input' && tag !== 'textarea') {
-                e.preventDefault();
-            }
+            if (tag !== "input" && tag !== "textarea") e.preventDefault();
         }
     });
 </script>
