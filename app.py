@@ -905,27 +905,45 @@ def exam():
 
     try:
         if "exam_question_ids" not in session:
-            flash("Start exam from dashboard first.", "error")
+            flash("No active exam found. Please start from the dashboard.", "error")
             return redirect(url_for("dashboard"))
 
-        questions = get_questions_by_ids(session["exam_question_ids"])
+        question_ids = session.get("exam_question_ids", [])
+        if not question_ids:
+            flash("Exam question list is empty. Please start again.", "error")
+            return redirect(url_for("dashboard"))
+
+        questions = get_questions_by_ids(question_ids)
         if not questions:
-            flash("Exam data missing. Please start again from the dashboard.", "error")
+            flash("Could not load exam questions. Please start again from the dashboard.", "error")
+            # Clear stale exam session data
+            for key in ["exam_question_ids", "exam_start_time", "exam_duration", "practical_name"]:
+                session.pop(key, None)
             return redirect(url_for("dashboard"))
 
         start_time = session.get("exam_start_time")
+        if not start_time:
+            flash("Exam session expired. Please start again.", "error")
+            return redirect(url_for("dashboard"))
+
         duration = session.get("exam_duration", EXAM_DURATION_SECONDS)
         now_ts = datetime.now().timestamp()
         remaining = int(start_time + duration - now_ts)
 
+        # If time is up, auto-submit with no answers (GET submit)
         if remaining <= 0:
             return redirect(url_for("submit_exam"))
 
         practical_name = session.get("practical_name", "")
-        return render_template("exam.html", questions=questions, remaining=remaining, practical_name=practical_name)
+        if not practical_name:
+            flash("Exam session data missing. Please start again.", "error")
+            return redirect(url_for("dashboard"))
+
+        return render_template("exam.html", questions=questions,
+                               remaining=remaining, practical_name=practical_name)
     except Exception as e:
-        logger.error("exam error: %s\n%s", e, traceback.format_exc())
-        flash("Error loading exam. Please try again.", "error")
+        logger.error("exam route error: %s\n%s", e, traceback.format_exc())
+        flash(f"Error loading exam: {str(e)}", "error")
         return redirect(url_for("dashboard"))
 
 
@@ -935,30 +953,56 @@ def submit_exam():
         return redirect(url_for("index"))
 
     try:
+        # ── Guard: must have an active exam ────────────────────────────────────
         if "exam_question_ids" not in session:
+            flash("No active exam to submit. Please start from the dashboard.", "error")
             return redirect(url_for("dashboard"))
 
-        questions = get_questions_by_ids(session["exam_question_ids"])
+        question_ids = session.get("exam_question_ids", [])
+        if not question_ids:
+            flash("Exam session is empty. Please start again.", "error")
+            return redirect(url_for("dashboard"))
+
+        # ── Load questions from file (never from session) ───────────────────────
+        questions = get_questions_by_ids(question_ids)
         if not questions:
+            logger.error("submit_exam: get_questions_by_ids returned empty for ids=%s", question_ids)
+            flash("Could not load exam questions. Please contact faculty.", "error")
+            for key in ["exam_question_ids", "exam_start_time", "exam_duration", "practical_name"]:
+                session.pop(key, None)
             return redirect(url_for("dashboard"))
 
+        # ── Collect submitted answers (POST only) ───────────────────────────────
         submitted_answers = {}
         if request.method == "POST":
             for q in questions:
-                qid = str(q["id"])
-                submitted_answers[qid] = request.form.get(f"answer_{qid}")
+                qid = str(q.get("id", ""))
+                if qid:
+                    ans = request.form.get(f"answer_{qid}")
+                    if ans:
+                        submitted_answers[qid] = ans
 
-        practical_name = (request.form.get("practical_name") or "").strip() or session.get("practical_name", "")
+        # ── Resolve practical_name (form → session → fallback) ─────────────────
+        # Priority: hidden form field > session > empty string
+        practical_name = ""
+        if request.method == "POST":
+            practical_name = (request.form.get("practical_name") or "").strip()
+        if not practical_name:
+            practical_name = session.get("practical_name", "")
+        if not practical_name:
+            logger.warning("submit_exam: practical_name is empty for roll=%s", session.get("roll_no"))
 
-        total = len(questions)
+        # ── Score calculation ───────────────────────────────────────────────────
+        total     = len(questions)
+        correct   = 0
         attempted = 0
-        correct = 0
         detailed_answers = []
 
         for q in questions:
-            qid = str(q["id"])
-            ans = submitted_answers.get(qid)
-            is_correct = bool(ans and ans == q.get("answer"))
+            qid        = str(q.get("id", ""))
+            ans        = submitted_answers.get(qid)
+            q_answer   = q.get("answer", "")
+            is_correct = bool(ans and ans == q_answer)
 
             if ans:
                 attempted += 1
@@ -966,55 +1010,42 @@ def submit_exam():
                     correct += 1
 
             detailed_answers.append({
-                "question": q.get("question", ""),
-                "options": q.get("options", {}),
+                "question":       q.get("question", ""),
+                "options":        q.get("options", {}),
                 "student_answer": ans if ans else "NOT ATTEMPTED",
-                "correct_answer": q.get("answer", ""),
-                "status": "CORRECT" if is_correct else ("WRONG" if ans else "NOT ATTEMPTED")
+                "correct_answer": q_answer,
+                "status":         "CORRECT" if is_correct else ("WRONG" if ans else "NOT ATTEMPTED")
             })
 
         wrong = total - correct
-        score = correct
 
+        # ── Load user data ──────────────────────────────────────────────────────
         users = load_json(USERS_FILE)
-        user = users.get(session["roll_no"])
+        roll_no = session.get("roll_no", "")
+        user    = users.get(roll_no)
+
         if not user:
-            flash("User session error. Please login again.", "error")
+            logger.error("submit_exam: user not found for roll_no=%s", roll_no)
+            flash("Your account was not found. Please login again.", "error")
             session.clear()
             return redirect(url_for("index"))
 
         dt_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        session["last_result"] = {
-            "roll_no": user["roll_no"],
-            "name": user.get("full_name", ""),
-            "branch": user.get("branch", ""),
-            "year": user.get("year", ""),
-            "batch": user.get("batch", "1"),
-            "email": user.get("email", ""),
-            "practical_name": practical_name,
-            "score": f"{score} / {total}",
-            "total_questions": total,
-            "attempted": attempted,
-            "correct": correct,
-            "wrong": wrong,
-            "datetime": dt_str,
-            "detailed_answers": []
-        }
-
+        # ── Write result file ───────────────────────────────────────────────────
         os.makedirs(RESULTS_DIR, exist_ok=True)
         filename = f"Result_RollNo_{user['roll_no']}_{int(datetime.now().timestamp())}.txt"
         filepath = os.path.join(RESULTS_DIR, filename)
 
         lines = [
-            f"Roll No: {user['roll_no']}",
+            f"Roll No: {user.get('roll_no', '')}",
             f"Name: {user.get('full_name', '')}",
             f"Branch: {user.get('branch', '')}",
             f"Year: {user.get('year', '')}",
             f"Batch: {user.get('batch', '1')}",
             f"Email: {user.get('email', '')}",
             f"Practical: {practical_name}",
-            f"Score: {score} / {total}",
+            f"Score: {correct} / {total}",
             f"Attempted: {attempted}",
             f"Correct: {correct}",
             f"Wrong: {wrong}",
@@ -1034,20 +1065,42 @@ def submit_exam():
             lines.append(f"Status        : {item['status']}")
             lines.append("-" * 50)
 
-        try:
-            with open(filepath, 'w', encoding='utf-8') as f:
-                f.write("\n".join(lines))
-        except Exception as e:
-            logger.error("Could not write result file %s: %s", filepath, e)
+        # Write result file — raise on failure so we catch it
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write("\n".join(lines))
 
+        logger.info("Result saved: %s | Score: %d/%d", filename, correct, total)
+
+        # ── Store compact summary in session (no detailed_answers to stay small) ─
+        session["last_result"] = {
+            "roll_no":         user.get("roll_no", ""),
+            "name":            user.get("full_name", ""),
+            "branch":          user.get("branch", ""),
+            "year":            user.get("year", ""),
+            "batch":           user.get("batch", "1"),
+            "email":           user.get("email", ""),
+            "practical_name":  practical_name,
+            "score":           f"{correct} / {total}",
+            "total_questions": total,
+            "attempted":       attempted,
+            "correct":         correct,
+            "wrong":           wrong,
+            "datetime":        dt_str,
+            "detailed_answers": []   # loaded from file by /result
+        }
         session["last_result_file"] = filename
+        session.modified = True
+
+        # ── Clear exam session keys ─────────────────────────────────────────────
         for key in ["exam_question_ids", "exam_start_time", "exam_duration", "practical_name"]:
             session.pop(key, None)
 
         return redirect(url_for("result"))
+
     except Exception as e:
-        logger.error("submit_exam error: %s\n%s", e, traceback.format_exc())
-        flash("Error submitting exam. Please try again.", "error")
+        # Log the FULL traceback so you can see the real cause in terminal
+        logger.error("submit_exam FAILED: %s\n%s", e, traceback.format_exc())
+        flash(f"Error submitting exam ({type(e).__name__}: {e}). Please try again or contact faculty.", "error")
         return redirect(url_for("dashboard"))
 
 
